@@ -6,7 +6,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object FlickrPhotoServiceBuilder {
-    private const val URL = "  https://api.flickr.com/services/rest/"
+    private const val URL = "https://api.flickr.com/services/rest/"
 
     // Create logging - In Logcat use Debug filter 'OkHttp'
     private val logging = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY)
