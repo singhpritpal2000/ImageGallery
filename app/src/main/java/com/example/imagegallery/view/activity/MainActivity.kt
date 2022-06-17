@@ -4,9 +4,11 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.core.view.GravityCompat
 import com.example.imagegallery.R
 import com.example.imagegallery.view.fragment.HomeFragment
 import com.example.imagegallery.view.fragment.ProfileFragment
+import com.example.imagegallery.view.fragment.SearchFragment
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -29,11 +31,16 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_home -> supportFragmentManager.beginTransaction()
                     .replace(R.id.fragmentContainerView, HomeFragment()).commit()
 
+                R.id.nav_search ->
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fragmentContainerView, SearchFragment()).commit()
+
                 R.id.nav_profile ->
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.fragmentContainerView, ProfileFragment()).commit()
 
             }
+            drawerLayout.closeDrawer(GravityCompat.START)
             true
 
         }

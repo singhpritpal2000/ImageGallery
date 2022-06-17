@@ -10,12 +10,11 @@ import com.example.imagegallery.util.getProgressDrawable
 import com.example.imagegallery.util.loadImage
 import kotlinx.android.synthetic.main.layout_grid_item.view.*
 
-class HomeRecyclerViewAdapter(var listFlickrPhoto: ArrayList<FlickrPhoto>) :
-    RecyclerView.Adapter<HomeRecyclerViewAdapter.ViewHolder>() {
+class SearchRecyclerViewAdapter(var listFlickrPhoto: ArrayList<FlickrPhoto>) :
+    RecyclerView.Adapter<SearchRecyclerViewAdapter.ViewHolder>() {
 
-    fun updatePhoto(newPhoto: List<FlickrPhoto>, pageNo: Int) {
-        if (pageNo == 1)
-            listFlickrPhoto.clear()
+    fun updatePhoto(newPhoto: List<FlickrPhoto>) {
+        listFlickrPhoto.clear()
         listFlickrPhoto.addAll(newPhoto)
         notifyDataSetChanged()
     }

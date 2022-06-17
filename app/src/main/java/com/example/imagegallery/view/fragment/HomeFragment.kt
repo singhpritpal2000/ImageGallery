@@ -1,16 +1,22 @@
 package com.example.imagegallery.view.fragment
 
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AbsListView
 import android.widget.LinearLayout
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.example.imagegallery.R
 import com.example.imagegallery.model.network.FlickrPhoto
+import com.example.imagegallery.model.network.FlickrPhotos
+import com.example.imagegallery.model.network.FlickrResponse
 import com.example.imagegallery.model.storage.Photo
 import com.example.imagegallery.view.adapter.HomeRecyclerViewAdapter
 import com.example.imagegallery.viewmodel.HomeViewModel
@@ -18,29 +24,63 @@ import kotlinx.android.synthetic.main.fragment_home.*
 
 
 class HomeFragment : Fragment() {
-    private val NUM_COLUMNS = 2
-    private lateinit var homeRecyclerViewAdapter: HomeRecyclerViewAdapter
-    private lateinit var staggeredGridLayoutManager: StaggeredGridLayoutManager
-
     private lateinit var viewModel: HomeViewModel
-    private var listPhoto: List<Photo> = listOf()
+    private lateinit var flickrResponse: MutableLiveData<FlickrResponse>
+    private lateinit var error: MutableLiveData<Boolean>
+    private lateinit var PAGE_NO: MutableLiveData<Int>
+    private val staggeredRecyclerViewAdapter = HomeRecyclerViewAdapter(arrayListOf())
+    private val NUM_COLUMNS = 2
+
+    private lateinit var manager: StaggeredGridLayoutManager
+    private var isScrolling = false
+
+    companion object {
+        private val TAG = HomeFragment::class.java.simpleName
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_home, container, false)
     }
 
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        homeRecyclerViewAdapter = HomeRecyclerViewAdapter(arrayListOf())
-        staggeredGridLayoutManager = StaggeredGridLayoutManager(NUM_COLUMNS, LinearLayout.VERTICAL)
+        viewModel = ViewModelProviders.of(this).get(HomeViewModel::class.java)
+        flickrResponse = viewModel.getFlickrResponse()
+        error = viewModel.error
+        PAGE_NO = viewModel.PAGE_NO
+
+        observeViewModel()
+
+        manager = StaggeredGridLayoutManager(NUM_COLUMNS, LinearLayout.VERTICAL)
         recycler_view.apply {
-            layoutManager = staggeredGridLayoutManager
-            adapter = homeRecyclerViewAdapter
+            layoutManager = manager
+            adapter = staggeredRecyclerViewAdapter
         }
 
-        viewModel = ViewModelProviders.of(this).get(HomeViewModel::class.java)
-        observeViewModel()
+        recycler_view.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) {
+                    isScrolling = true
+                }
+            }
+
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val totalItems = manager.itemCount
+                val currentItems = manager.childCount
+                val scrollOutItems = manager.findFirstVisibleItemPositions(null)
+
+                if (isScrolling && (scrollOutItems[0] + currentItems >= totalItems)) {
+                    isScrolling = false
+                    Log.i(TAG, "$totalItems $currentItems (${scrollOutItems[0]}, ${scrollOutItems[1]})")
+                    viewModel.loadNextPage()
+                }
+            }
+        })
 
         swipeRefreshLayout.setOnRefreshListener {
             viewModel.refresh()
@@ -48,44 +88,33 @@ class HomeFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewModel.getFlickrPhoto().observe(viewLifecycleOwner, Observer { listFlickrPhoto ->
-            listFlickrPhoto?.let {
-                homeRecyclerViewAdapter.updatePhoto(it)
+        flickrResponse.observe(viewLifecycleOwner, Observer { flickrResponse ->
+            flickrResponse?.let {
+                val flickrPhotos: FlickrPhotos = it.photos!!
+                val listFlickrPhotos: List<FlickrPhoto> = flickrPhotos.photo!!
+                staggeredRecyclerViewAdapter.updatePhoto(listFlickrPhotos, PAGE_NO.value!!)
                 swipeRefreshLayout.isRefreshing = false
+                for (i in listFlickrPhotos) {
+                    Log.i(TAG, "${i.url}")
+                }
             }
         })
 
-        viewModel.allPhoto.observe(viewLifecycleOwner, Observer {
+        error.observe(viewLifecycleOwner, Observer {
             it?.let {
-                listPhoto = it
-                if (viewModel.error.value!!) {
-                    updateRecyclerView()
-                }
+                if (it)
+                    swipeRefreshLayout.isRefreshing = false
             }
         })
 
-        viewModel.error.observe(viewLifecycleOwner, Observer { error ->
-            error?.let {
+        viewModel.isLoading.observe(viewLifecycleOwner, Observer {
+            it?.let {
                 if (it) {
-                    updateRecyclerView()
+                    progress_bar.visibility = View.VISIBLE
+                } else {
+                    progress_bar.visibility = View.GONE
                 }
             }
         })
-    }
-
-    private fun updateRecyclerView() {
-        val listFlickrPhoto: ArrayList<FlickrPhoto> = ArrayList()
-        for (photo in listPhoto) {
-            val flickrPhoto = FlickrPhoto()
-            flickrPhoto.title = photo.title
-            flickrPhoto.url = photo.url_s
-            flickrPhoto.width = photo.width_s
-            flickrPhoto.height = photo.height_s
-
-            listFlickrPhoto.add(flickrPhoto)
-        }
-
-        homeRecyclerViewAdapter.updatePhoto(listFlickrPhoto)
-        swipeRefreshLayout.isRefreshing = false
     }
 }
